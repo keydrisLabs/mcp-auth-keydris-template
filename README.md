@@ -27,6 +27,7 @@
   <a href="https://mcp-use.com/docs/typescript/getting-started/quickstart">mcp-use docs</a>
 </p>
 
+
 ---
 
 ## What this is
@@ -113,3 +114,15 @@ To learn more about mcp-use, MCP, and the kit reader:
 ```bash
 npm run deploy
 ```
+
+---
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=keydrislabs%2Fmcp-auth-keydris-template&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=keydrislabs/mcp-auth-keydris-template&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=keydrislabs/mcp-auth-keydris-template&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=keydrislabs/mcp-auth-keydris-template&type=date&legend=top-left" />
+ </picture>
+</a>
