@@ -24,12 +24,20 @@ function assertRedeemableUrl(raw: string, allowInsecure: boolean): void {
   try {
     url = new URL(raw);
   } catch {
-    throw new Error(`gatewayUrl must be an http(s) URL, got ${JSON.stringify(raw)}`);
+    throw new Error(
+      `gatewayUrl must be an http(s) URL, got ${JSON.stringify(raw)}`,
+    );
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error(`gatewayUrl must be an http(s) URL, got ${JSON.stringify(raw)}`);
+    throw new Error(
+      `gatewayUrl must be an http(s) URL, got ${JSON.stringify(raw)}`,
+    );
   }
-  if (url.protocol === 'http:' && !isLoopbackHost(url.hostname) && !allowInsecure) {
+  if (
+    url.protocol === 'http:' &&
+    !isLoopbackHost(url.hostname) &&
+    !allowInsecure
+  ) {
     throw new Error(
       `gatewayUrl ${JSON.stringify(raw)} is plaintext http to a non-loopback host: ` +
         'the redemption channel carries a live token and returns a raw secret. ' +
@@ -43,6 +51,9 @@ import type {
   KitReader,
   KitReaderOptions,
   KitTarget,
+  PaymentAuthorization,
+  PaymentConnectionEvidence,
+  PaymentContext,
   Redemption,
 } from './types.js';
 
@@ -84,6 +95,7 @@ export function createKitReader(options: KitReaderOptions): KitReader {
     token: string,
     context: KitActionContext | undefined,
     target: KitTarget | undefined,
+    authorization: PaymentAuthorization | undefined,
   ): Promise<Redemption> {
     // The gateway's schema pairs them strictly: a KIT action token must arrive
     // with both the MCP action and the downstream target, a legacy header token
@@ -103,7 +115,9 @@ export function createKitReader(options: KitReaderOptions): KitReader {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(
-          context && target ? { token, ...context, target } : { token },
+          context && target
+            ? { token, ...context, target, ...authorization }
+            : { token },
         ),
         // A hung gateway must not hang the tool call: the agent needs an
         // answer while its own request deadline is still open. Matches the
@@ -111,7 +125,10 @@ export function createKitReader(options: KitReaderOptions): KitReader {
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch {
-      return { ok: false, problem: 'The Keydris gateway could not be reached.' };
+      return {
+        ok: false,
+        problem: 'The Keydris gateway could not be reached.',
+      };
     }
 
     const body: unknown = await response.json().catch(() => undefined);
@@ -123,7 +140,13 @@ export function createKitReader(options: KitReaderOptions): KitReader {
       };
     }
 
-    const { credentials } = (body ?? {}) as { credentials?: unknown[] };
+    const { credentials, decision_id, approved_payment, payment_connection } =
+      (body ?? {}) as {
+        credentials?: unknown[];
+        decision_id?: unknown;
+        approved_payment?: unknown;
+        payment_connection?: unknown;
+      };
     if (!Array.isArray(credentials) || credentials.length === 0) {
       return { ok: false, problem: 'The Keydris gateway released nothing.' };
     }
@@ -132,6 +155,26 @@ export function createKitReader(options: KitReaderOptions): KitReader {
         ok: false,
         problem:
           'The Keydris gateway returned a credential in a shape this reader does not recognize.',
+      };
+    }
+    if (authorization) {
+      if (
+        typeof decision_id !== 'string' ||
+        !isApprovedPayment(approved_payment, authorization.payment) ||
+        !isPaymentConnectionEvidence(payment_connection)
+      ) {
+        return {
+          ok: false,
+          problem:
+            'The Keydris gateway did not return payment approval evidence matching this request.',
+        };
+      }
+      return {
+        ok: true,
+        credentials,
+        decisionId: decision_id,
+        approvedPayment: approved_payment,
+        paymentConnection: payment_connection,
       };
     }
     return { ok: true, credentials };
@@ -180,7 +223,42 @@ export function createKitReader(options: KitReaderOptions): KitReader {
         };
       }
 
-      return exchange(token, kitActionToken.context, source?.target);
+      return exchange(
+        token,
+        kitActionToken.context,
+        source?.target,
+        source?.authorization,
+      );
     },
   };
+}
+
+function isPaymentConnectionEvidence(
+  value: unknown,
+): value is PaymentConnectionEvidence {
+  if (!value || typeof value !== 'object') return false;
+  const connection = value as Record<string, unknown>;
+  return (
+    (connection.role === 'buyer' || connection.role === 'seller') &&
+    (connection.payment_method_id === undefined ||
+      (typeof connection.payment_method_id === 'string' &&
+        connection.payment_method_id.startsWith('pm_'))) &&
+    (connection.network_business_profile === undefined ||
+      typeof connection.network_business_profile === 'string')
+  );
+}
+
+function isApprovedPayment(
+  value: unknown,
+  expected: PaymentContext,
+): value is PaymentContext {
+  if (!value || typeof value !== 'object') return false;
+  const payment = value as Record<string, unknown>;
+  return (
+    payment.transaction_type === expected.transaction_type &&
+    payment.amount === expected.amount &&
+    payment.currency === expected.currency &&
+    payment.method === expected.method &&
+    payment.payment_connection_id === expected.payment_connection_id
+  );
 }

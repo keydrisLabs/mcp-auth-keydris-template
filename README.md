@@ -7,15 +7,13 @@ Two independently deployable [mcp-use](https://mcp-use.com/) templates for the S
 
 The apps share payment schemas in `src/payments.ts`. Both install the credential-free Keydris kit reader from `src/keydris` at the MCP transport boundary: each MCP call receives a single-use action token and can redeem it for one outbound request without retaining a Stripe key.
 
-## Current milestone
+## Payment-aware KIT flow
 
-ENG-265 establishes the server boundaries, schemas, configuration, and safe challenge flow. Money-moving paths intentionally fail closed until Keydris implements the payment-aware release and outcome contracts:
+Each money-moving tool includes a strict `payment` object in its MCP parameters. The action token binds those parameters. At redemption, the kit reader sends the same context separately so Keydris can evaluate `payment.spend` or `payment.refund`; the gateway refuses any context that does not exactly match the token-bound parameters.
 
-- Wallet SPT issuance requires buyer `payment.spend` evaluation and an `approved_amount` response.
-- Seller charging requires a headless seller release evaluated against `payment.spend`.
-- Seller refunds require an independent `payment.refund` decision.
+After an allow decision, the gateway returns the approved payment values, decision ID, and non-secret Stripe connection evidence. The reader verifies that evidence before making one outbound request. The wallet resolves its PaymentMethod from the approved buyer connection, while the seller can use only a seller connection for PaymentIntents and refunds. Stripe credentials remain inside the one-shot fetch path.
 
-Do not replace these guards with the generic credential redemption path. That would release Stripe credentials without enforcing the payment cap.
+The templates use Stripe API version `2026-07-29.preview`. Stripe redirects are not followed, and stable `request_id` values become Stripe idempotency keys.
 
 ## Install and check
 
@@ -60,7 +58,7 @@ Copy `apps/seller-mcp/.env.example` to `apps/seller-mcp/.env` and set:
 | `SELLER_CATALOG_JSON` | Yes | Server-authoritative products, amounts, and currencies. |
 | `SELLER_CHALLENGE_TTL_SECONDS` | No | Challenge lifetime; defaults to 300 and is capped at 600 seconds. |
 
-The signed challenge binds SKU, quantity, amount, currency, seller profile, and expiry. The later charge implementation must use durable idempotency and outcome reporting in addition to this integrity check.
+The signed challenge binds SKU, quantity, amount, currency, seller profile, and expiry. `purchase` validates it against the server-authoritative catalog before confirming a PaymentIntent. `refund` uses the separate `payment.refund` policy path.
 
 ## Deploy on Manufact
 
@@ -71,7 +69,7 @@ npm run deploy:wallet
 npm run deploy:seller
 ```
 
-Set environment variables through Manufact rather than committing `.env` files. Deployment is intentionally deferred until the payment-aware Keydris endpoints are available; a deployed ENG-265 template would list tools but refuse SPT issuance, charging, and refunds.
+Set environment variables through Manufact rather than committing `.env` files. Deploy the backend payment-aware gateway changes before pointing a hosted template at it.
 
 ## Repository layout
 
@@ -82,6 +80,7 @@ apps/
 src/
   keydris/          shared single-use KIT reader
   payments.ts       shared Stripe MPP schemas and helpers
+  stripe.ts         exact minor-unit conversion and Stripe request helpers
 ```
 
 The previous generic GitHub example remains at the repository root as a kit-reader reference; it is not part of the workspace build.

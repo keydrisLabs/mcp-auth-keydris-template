@@ -2,12 +2,25 @@ import { z } from 'zod';
 
 export const amountSchema = z
   .string()
-  .regex(/^\d+(?:\.\d{1,2})?$/, 'amount must use decimal major units with at most two decimals')
+  .regex(
+    /^\d+(?:\.\d{1,2})?$/,
+    'amount must use decimal major units with at most two decimals',
+  )
   .refine((value) => Number(value) > 0, 'amount must be greater than zero');
 
 export const currencySchema = z
   .string()
   .regex(/^[A-Z]{3}$/, 'currency must be an uppercase ISO 4217 code');
+
+export const paymentContextSchema = z
+  .object({
+    transaction_type: z.enum(['spend', 'refund']),
+    amount: amountSchema,
+    currency: currencySchema,
+    method: z.literal('CARD'),
+    payment_connection_id: z.string().uuid(),
+  })
+  .strict();
 
 export const stripeChallengeSchema = z
   .object({

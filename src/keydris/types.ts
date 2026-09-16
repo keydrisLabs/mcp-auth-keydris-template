@@ -20,8 +20,38 @@ export type CredentialEnvelope = {
  * failure that leaves it guessing. `problem` is that explanation.
  */
 export type Redemption =
-  | { ok: true; credentials: CredentialEnvelope[] }
+  | {
+      ok: true;
+      credentials: CredentialEnvelope[];
+      decisionId?: string;
+      approvedPayment?: PaymentContext;
+      paymentConnection?: PaymentConnectionEvidence;
+    }
   | { ok: false; problem: string };
+
+export type PaymentContext = {
+  transaction_type: 'spend' | 'refund';
+  amount: string;
+  currency: string;
+  method: 'CARD';
+  payment_connection_id: string;
+};
+
+export type PaymentReference = {
+  challenge_id?: string;
+  spt_id?: string;
+};
+
+export type PaymentAuthorization = {
+  payment: PaymentContext;
+  reference?: PaymentReference;
+};
+
+export type PaymentConnectionEvidence = {
+  role: 'buyer' | 'seller';
+  payment_method_id?: string;
+  network_business_profile?: string;
+};
 
 /**
  * The call the token was minted for. Sent alongside the token so the gateway
@@ -37,13 +67,7 @@ export type KitActionContext = {
 
 /** HTTP methods the gateway's `target` schema accepts. */
 export type TargetMethod =
-  | 'GET'
-  | 'POST'
-  | 'PUT'
-  | 'PATCH'
-  | 'DELETE'
-  | 'HEAD'
-  | 'OPTIONS';
+  'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 
 /**
  * The downstream request the credential is for. The gateway matches it against
@@ -117,6 +141,10 @@ export type KitReader = {
    */
   redeem(
     body: unknown,
-    source?: { header?: string; target?: KitTarget },
+    source?: {
+      header?: string;
+      target?: KitTarget;
+      authorization?: PaymentAuthorization;
+    },
   ): Promise<Redemption | undefined>;
 };
