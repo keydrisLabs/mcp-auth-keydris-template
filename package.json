@@ -1,11 +1,15 @@
 {
-  "name": "keydris-manufact-template",
+  "name": "keydris-mcp-templates",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22.22.2"
   },
   "version": "1.0.0",
-  "description": "an mcp-use server with Keydris kit reader middleware",
+  "description": "Keydris wallet and seller MCP templates for Stripe MPP",
   "author": "mcp-use",
   "license": "MIT",
   "homepage": "https://github.com/mcp-use/mcp-use",
@@ -19,11 +23,14 @@
     "manufact"
   ],
   "scripts": {
-    "build": "mcp-use build",
-    "dev": "mcp-use dev",
-    "start": "mcp-use start",
-    "deploy": "mcp-use deploy",
-    "typecheck": "mcp-use typecheck"
+    "build": "npm run build --workspaces --if-present",
+    "build:wallet": "npm run build --workspace @keydris/wallet-mcp",
+    "build:seller": "npm run build --workspace @keydris/seller-mcp",
+    "dev:wallet": "npm run dev --workspace @keydris/wallet-mcp",
+    "dev:seller": "npm run dev --workspace @keydris/seller-mcp",
+    "deploy:wallet": "npm run deploy --workspace @keydris/wallet-mcp",
+    "deploy:seller": "npm run deploy --workspace @keydris/seller-mcp",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "dependencies": {
     "mcp-use": "2.4.3",

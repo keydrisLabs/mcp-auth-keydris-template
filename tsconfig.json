@@ -1,18 +1,5 @@
 {
-  "compilerOptions": {
-    "target": "ES2024",
-    "jsx": "react-jsx",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "lib": ["ES2024", "DOM", "DOM.Iterable"],
-    "strict": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "types": ["node"],
-    "noEmit": true,
-    "noUncheckedSideEffectImports": true
-  },
+  "extends": "./tsconfig.base.json",
   "include": [
     "index.ts",
     "mcp-env.d.ts",
