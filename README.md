@@ -42,7 +42,7 @@ Copy `apps/wallet-mcp/.env.example` to `apps/wallet-mcp/.env` and set:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `KEYDRIS_GATEWAY_URL` | Yes for authorization | Buyer Keydris credential-redemption endpoint. HTTPS is required outside loopback. |
+| `KEYDRIS_GATEWAY_URL` | No | Buyer Keydris credential-redemption endpoint. Defaults to the Keydris development gateway. |
 | `KEYDRIS_TOKEN_HEADER` | No | Legacy action-token header; defaults to `authorization`. |
 
 The MCP request normally carries `keydris/kit_action_token` in `params._meta`.
@@ -53,7 +53,7 @@ Copy `apps/seller-mcp/.env.example` to `apps/seller-mcp/.env` and set:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `KEYDRIS_GATEWAY_URL` | Yes for governed Stripe access | Seller Keydris credential-redemption endpoint. HTTPS is required outside loopback. |
+| `KEYDRIS_GATEWAY_URL` | No | Seller Keydris credential-redemption endpoint. Defaults to the Keydris development gateway. |
 | `KEYDRIS_TOKEN_HEADER` | No | Legacy action-token header; defaults to `authorization`. |
 | `STRIPE_NETWORK_ID` | Yes | Seller network business profile placed in each challenge. |
 | `SELLER_CHALLENGE_SIGNING_SECRET` | Yes | At least 32 characters; integrity-binds the quoted purchase. |

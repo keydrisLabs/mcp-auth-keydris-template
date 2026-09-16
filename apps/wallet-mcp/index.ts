@@ -8,7 +8,9 @@ import {
   stripeChallengeSchema,
 } from '../../src/payments.js';
 
-const gatewayUrl = process.env.KEYDRIS_GATEWAY_URL ?? '';
+const gatewayUrl =
+  process.env.KEYDRIS_GATEWAY_URL ??
+  'https://dev.api.keydris.com/gateway/crendentials';
 const reader = gatewayUrl
   ? createKitReader({
       gatewayUrl,
