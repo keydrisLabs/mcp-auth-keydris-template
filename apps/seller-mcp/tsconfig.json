@@ -4,6 +4,7 @@
     "index.ts",
     "mcp-env.d.ts",
     "src/**/*.ts",
+    "../../src/keydris/**/*.ts",
     "../../src/payments.ts",
     ".mcp-use/**/*.d.ts"
   ]

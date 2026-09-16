@@ -1,5 +1,6 @@
 import { MCPServer } from 'mcp-use';
 import { z } from 'zod';
+import { createKitReader, keydrisCredentials } from '../../src/keydris/index.js';
 import {
   amountSchema,
   failed,
@@ -19,6 +20,18 @@ const server = new MCPServer({
   description:
     'Seller merchant MCP for Stripe MPP quotes, payment challenges, governed charges, and refunds.',
 });
+
+const reader = config.gatewayUrl
+  ? createKitReader({
+      gatewayUrl: config.gatewayUrl,
+      tokenHeader: config.tokenHeader,
+    })
+  : null;
+
+// Keep the KIT reader at the transport boundary for every seller tool. Quote
+// and challenge generation do not reveal a credential; charge, refund, and
+// status will spend the action token when their governed Stripe call is wired.
+server.use('mcp:tools/call', keydrisCredentials(reader));
 
 const lineItemSchema = z.object({
   sku: z.string(),
