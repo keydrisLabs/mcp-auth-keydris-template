@@ -5,7 +5,11 @@ export {
   kitSpendFrom,
   KIT_SPEND_VAR,
 } from './middleware.js';
-export type { KeydrisFetchResult, KitSpend } from './middleware.js';
+export type {
+  KeydrisFetchResult,
+  KeydrisRequestFactory,
+  KitSpend,
+} from './middleware.js';
 export { createKitReader } from './redeem.js';
 export {
   callsATool,
@@ -18,6 +22,10 @@ export type {
   KitReader,
   KitReaderOptions,
   KitTarget,
+  PaymentAuthorization,
+  PaymentConnectionEvidence,
+  PaymentContext,
+  PaymentReference,
   Redemption,
   TargetMethod,
   TokenLookup,

@@ -11,6 +11,7 @@ import { applyCredentials } from './credentials.js';
 import type {
   KitReader,
   KitTarget,
+  PaymentAuthorization,
   Redemption,
   TargetMethod,
 } from './types.js';
@@ -23,7 +24,10 @@ export const KIT_SPEND_VAR = 'keydris/kit-spend';
  * token atomically on release, so a second call is refused locally with a
  * readable problem instead of a wire round-trip that cannot succeed.
  */
-export type KitSpend = (target: KitTarget) => Promise<Redemption>;
+export type KitSpend = (
+  target: KitTarget,
+  authorization?: PaymentAuthorization,
+) => Promise<Redemption>;
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -73,7 +77,7 @@ export function keydrisCredentials(
     const header = ctx.request?.header(reader.tokenHeader);
 
     let spent = false;
-    ctx.set(KIT_SPEND_VAR, async (target) => {
+    ctx.set(KIT_SPEND_VAR, async (target, authorization) => {
       if (spent) {
         return {
           ok: false,
@@ -83,7 +87,7 @@ export function keydrisCredentials(
       }
       spent = true;
       return (
-        (await reader.redeem(body, { header, target })) ?? {
+        (await reader.redeem(body, { header, target, authorization })) ?? {
           ok: false,
           problem:
             'This MCP request calls no tool, so there is no action token to redeem.',
@@ -119,8 +123,19 @@ export function kitSpendFrom(ctx: SpendContext): KitSpend {
  * `ok: true` result carrying that response, for the tool to interpret.
  */
 export type KeydrisFetchResult =
-  | { ok: true; response: Response }
+  | {
+      ok: true;
+      response: Response;
+      decisionId?: string;
+      approvedPayment?: import('./types.js').PaymentContext;
+      paymentConnection?: import('./types.js').PaymentConnectionEvidence;
+    }
   | { ok: false; problem: string };
+
+export type KeydrisRequestFactory = {
+  method: TargetMethod;
+  build: (release: Extract<Redemption, { ok: true }>) => RequestInit;
+};
 
 const TARGET_METHODS: ReadonlySet<string> = new Set([
   'GET',
@@ -142,10 +157,13 @@ const TARGET_METHODS: ReadonlySet<string> = new Set([
 export async function keydrisFetch(
   ctx: SpendContext,
   input: string | URL,
-  init?: RequestInit,
+  init?: RequestInit | KeydrisRequestFactory,
+  authorization?: PaymentAuthorization,
 ): Promise<KeydrisFetchResult> {
   const url = new URL(input);
-  const method = (init?.method ?? 'GET').toUpperCase();
+  const method = (
+    init && 'build' in init ? init.method : (init?.method ?? 'GET')
+  ).toUpperCase();
   if (!TARGET_METHODS.has(method)) {
     return {
       ok: false,
@@ -153,16 +171,31 @@ export async function keydrisFetch(
     };
   }
 
-  const redemption = await kitSpendFrom(ctx)({
-    host: url.hostname,
-    path: url.pathname || '/',
-    method: method as TargetMethod,
-  });
+  const redemption = await kitSpendFrom(ctx)(
+    {
+      host: url.hostname,
+      path: url.pathname || '/',
+      method: method as TargetMethod,
+    },
+    authorization,
+  );
   if (!redemption.ok) {
     return { ok: false, problem: redemption.problem };
   }
 
-  const headers = new Headers(init?.headers);
+  const requestInit = init && 'build' in init ? init.build(redemption) : init;
+  const headers = new Headers(requestInit?.headers);
   applyCredentials(redemption.credentials, url, headers);
-  return { ok: true, response: await fetch(url, { ...init, method, headers }) };
+  return {
+    ok: true,
+    response: await fetch(url, {
+      ...requestInit,
+      method,
+      headers,
+      redirect: 'manual',
+    }),
+    decisionId: redemption.decisionId,
+    approvedPayment: redemption.approvedPayment,
+    paymentConnection: redemption.paymentConnection,
+  };
 }
